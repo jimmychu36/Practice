@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>摮貊??鞈?- ?啁??蝺渡? App</title>
+    
+    <!-- Meta tags -->
+    <meta name="description" content="?啁?? 1-6 撟渡?蝺渡? App嚗?40 ?移?賊???>
+    <meta property="og:title" content="摮貊??鞈?- ?啁??蝺渡? App">
+    <meta property="og:description" content="?啁??摮貊?蟡嚗?40 ???殷??單?鈭?">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>?</text></svg>">
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; 
+            background: #FFF8E7;
+        }
+        #root { width: 100%; min-height: 100vh; }
+        
+        .loading-spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #FFE5B4; border-top: 4px solid #FF6B6B;
+            border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;
+        }
+        
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .error-message {
+            background: #FFE5E5; color: #CC0000; padding: 20px; border-radius: 12px;
+            margin: 20px; text-align: center; border: 2px solid #FF6B6B;
+        }
+        
+        .icon { font-style: normal; margin-right: 8px; }
+        
+        button {
+            transition: transform 0.2s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        @media (max-width: 600px) {
+            body { font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #FFE5B4 0%, #FFB6A3 50%, #FF9999 100%);">
+            <div style="text-align: center;">
+                <div class="loading-spinner"></div>
+                <p style="margin-top: 20px; color: #5C4033; font-weight: 600;">頛摮貊??鞈?..</p>
+                <p style="margin-top: 10px; color: #8B4513; font-size: 14px;">甇?皞?憿????..</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- React Dependencies Only -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- 銝餅??函?撘?-->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // 雿輻 Emoji ?內隞? Lucide React
+        const icons = {
+            BookOpen: '??',
+            Calculator: '?妙', 
+            Globe: '??',
+            Trophy: '??',
+            User: '?',
+            Star: '潃?,
+            Zap: '??,
+            Target: '?',
+            Award: '??',
+            ChevronRight: '?塚?',
+            RotateCcw: '??',
+            Home: '??',
+            Crown: '??',
+            Medal: '??',
+            Sparkles: '??,
+            CheckCircle2: '??,
+            XCircle: '??,
+            Flame: '?',
+            Lightbulb: '?',
+            Tag: '?儭?,
+            History: '??',
+            TrendingUp: '??',
+            Calendar: '??',
+            Clock: '??
+        };
+
+        // 蝪∪???啣???        const storage = {
+            get: async (key, shared = false) => {
+                try {
+                    const storageKey = shared ? `shared_${key}` : `personal_${key}`;
+                    const value = localStorage.getItem(storageKey);
+                    return value ? { key: storageKey, value, shared } : null;
+                } catch { return null; }
+            },
+            set: async (key, value, shared = false) => {
+                try {
+                    const storageKey = shared ? `shared_${key}` : `personal_${key}`;
+                    localStorage.setItem(storageKey, value);
+                    return { key: storageKey, value, shared };
+                } catch { return null; }
+            }
+        };
+
+        if (!window.storage) window.storage = storage;
+
+        // 憿澈?豢?
+        const questionBank = {
+          '??': {
+            1: [
+              { cat: '瘜券蝚西?', q: '隢??????葉嚗???瘜券?臭?暻潘?', options: ['??, '??, '??, '??], answer: 1, e: '瘜券蝚西???摨 ????????蝚砌??停?胯???嚗? },
+              { cat: '瘜券蝚西?', q: '?云?賬??云??瘜券?荔?', options: ['???', '???', '??', '??'], answer: 1, e: '?云?雿????嚗??之?????) ?瑕????潮銝??? },
+              { cat: '霅?', q: '銝??芯?????押?', options: ['獢?', '撠?', '??', '頠?'], answer: 1, e: '??舀??芸楛瘣餃????踝?撠????嚗??? },
+              { cat: '霅?', q: '????????????敺嚗?, options: ['??, '銝?, '??, '銋?], answer: 0, e: '?詨???嚗???????????????????敺?臬?? },
+              { cat: '瘜券蝚西?', q: '???扼??????摮嚗?, options: ['憭?, '撠?, '銝?, '擃?], answer: 1, e: '??? ????舐洵銝嚗??銝之?? }
+            ],
+            2: [
+              { cat: '?券?', q: '??鈭柴??????券??荔?', options: ['??, '??, '??, '??], answer: 0, e: '?????????????券??胯??憭芷)?? },
+              { cat: '閰?, q: '銝??芯???耦摰寡???', options: ['頝?, '蝢?', '獢?', '??], answer: 1, e: '敶Ｗ捆閰?其?敶Ｗ捆?梯正????暻隞亙耦摰寡?犖?? },
+              { cat: '?儔閰?, q: '?翰璅??詨?閰嚗?, options: ['擃?', '??', '?脣', '?翰'], answer: 2, e: '敹急???瑟?詨???蝺? },
+              { cat: '閰?, q: '??憭拙予瘞??憟賬??末?嚗?, options: ['??', '??', '敶Ｗ捆閰?, '?航?'], answer: 2, e: '?末??ㄐ敶Ｗ捆憭拇除?????隞交敶Ｗ捆閰? },
+              { cat: '撣貉?', q: '???????嚗?, options: ['憿', '摮??', '?孵?', '?詨?'], answer: 1, e: '銝撟湔??迤蝭嚗憭押?憭押?憭押憭押? }
+            ]
+          },
+          '?詨飛': {
+            1: [
+              { cat: '??', q: '3 + 4 = ?', options: ['6', '7', '8', '9'], answer: 1, e: '?臭誑?冽??嚗?隡??寞?????4?對?蝮賢???嫘? },
+              { cat: '皜?', q: '10 - 5 = ?', options: ['3', '4', '5', '6'], answer: 2, e: '10?镼踵韏????5????璁艙??' },
+              { cat: '??', q: '8 + 2 = ?', options: ['9', '10', '11', '12'], answer: 1, e: '8 ??2 ?末皝? 10??雿?+2=10??撖衣嚗? },
+              { cat: '皜?', q: '15 - 7 = ?', options: ['7', '8', '9', '10'], answer: 1, e: '15 皜?7嚗隞交 15-5=10嚗?皜?2 撠望 8?? },
+              { cat: '??', q: '6 + 6 = ?', options: ['10', '11', '12', '13'], answer: 2, e: '?拙?6 ?絲靘???12???臭誑?單? 6?2=12?? }
+            ],
+            2: [
+              { cat: '??', q: '25 + 36 = ?', options: ['51', '61', '71', '81'], answer: 1, e: '?游?閮?嚗? 5+6=11嚗脖?1??雿?2+3+1=6??獢 61?? },
+              { cat: '皜?', q: '80 - 45 = ?', options: ['25', '35', '45', '55'], answer: 1, e: '?? 0-5 銝?皜???雿?嚗?0-5=5??雿? 7-4=3??獢?35?? },
+              { cat: '銋?', q: '3 ? 4 = ?', options: ['7', '10', '12', '14'], answer: 2, e: '3 ??4 ?詨?嚗?+4+4=12?? },
+              { cat: '銋?', q: '7 ? 2 = ?', options: ['12', '14', '16', '18'], answer: 1, e: '7 ??7 蝑 14?遙雿摮??2 撠望摰撌勗??芸楛?? },
+              { cat: '??', q: '銝?望?撟曉予嚗?, options: ['5憭?, '6憭?, '7憭?, '8憭?], answer: 2, e: '銝?望??銝?唳??嚗蜇??憭押? }
+            ]
+          },
+          '?梯?': {
+            1: [
+              { cat: '?桀?', q: '"Apple" ?葉?嚗?, options: ['璈?', '??', '擐?', '?∟?'], answer: 1, e: 'Apple 撠望????摮 orange嚗?? banana嚗? grape?? },
+              { cat: '?桀?', q: '"Cat" ?葉?嚗?, options: ['??, '鞎?, '擳?, '曈?], answer: 1, e: 'Cat ?胯????潮??嫘?????dog嚗???fish嚗野??bird?? },
+              { cat: '摮?', q: '?望?摮?蝮賢?嗾??', options: ['24', '25', '26', '27'], answer: 2, e: '?望?摮?敺?A ??Z ??26 ???晞BC 銋??停??嚗? },
+              { cat: '?桀?', q: '"Red" ?臭?暻潮??莎?', options: ['蝝', '?', '暺', '蝬'], answer: 0, e: 'Red ?胯??脯???blue嚗???yellow嚗???green?? },
+              { cat: '?詨?', q: '?詨? "Three" ?荔?', options: ['1', '2', '3', '4'], answer: 2, e: 'Three ??3?ne=1, two=2, three=3, four=4?? }
+            ],
+            2: [
+              { cat: '撠店', q: '"How are you?" ??蝑隞交嚗?, options: ['Yes', 'No', "I'm fine", 'Goodbye'], answer: 2, e: '"How are you?" (雿末??) ?虜?? "I\'m fine, thank you."' },
+              { cat: '?桀?', q: '"Mother" ?葉?嚗?, options: ['?貊', '慦賢直', '?亙', '憪?'], answer: 1, e: 'Mother ?胯直慦賬?銋虜??Mom)?? },
+              { cat: '?詨?', q: '"One, two, ___, four" 蝛箸?荔?', options: ['three', 'five', 'six', 'seven'], answer: 0, e: '?望??詨???嚗ne(1), two(2), three(3), four(4), five(5)...' },
+              { cat: '?桀?', q: '"Banana" ?臭?暻潘?', options: ['??', '擐?', '璈?', '?∟?'], answer: 1, e: 'Banana ?胯??? },
+              { cat: '?桀?', q: '"Bird" ?葉?嚗?, options: ['擳?, '曈?, '??, '??], answer: 1, e: 'Bird ?胯野?? }
+            ]
+          }
+        };
+
+        const SUBJECT_META = {
+          '??': { icon: '??', color: '#FF6B6B', bg: '#FFE5E5' },
+          '?梯?': { icon: '??', color: '#4ECDC4', bg: '#E0F7F5' },
+          '?詨飛': { icon: '?妙', color: '#FFB347', bg: '#FFF0D9' },
+        };
+
+        function ElementaryPracticeApp() {
+          const [screen, setScreen] = useState('welcome');
+          const [userName, setUserName] = useState('');
+          const [grade, setGrade] = useState(1);
+          const [subject, setSubject] = useState('??');
+          const [questions, setQuestions] = useState([]);
+          const [currentQ, setCurrentQ] = useState(0);
+          const [selectedAns, setSelectedAns] = useState(null);
+          const [showFeedback, setShowFeedback] = useState(false);
+          const [score, setScore] = useState(0);
+          const [correctCount, setCorrectCount] = useState(0);
+          const [loading, setLoading] = useState(true);
+
+          // ?單?蝟餌絞
+          const playSound = (type) => {
+            try {
+              const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+              if (type === 'correct') {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.3);
+              } else if (type === 'click') {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.1);
+              }
+            } catch (e) { 
+              console.log('?單??剜憭望?:', e); 
+            }
+          };
+
+          const startQuiz = () => {
+            const allQs = questionBank[subject][grade] || [];
+            const shuffled = [...allQs].sort(() => Math.random() - 0.5).slice(0, 5);
+            setQuestions(shuffled);
+            setCurrentQ(0); setSelectedAns(null); setShowFeedback(false);
+            setScore(0); setCorrectCount(0); setScreen('quiz');
+          };
+
+          const selectAnswer = (idx) => {
+            if (showFeedback) return;
+            playSound('click');
+            setSelectedAns(idx); setShowFeedback(true);
+            const correct = idx === questions[currentQ].answer;
+            if (correct) {
+              setTimeout(() => playSound('correct'), 100);
+              setScore(score + 10); setCorrectCount(correctCount + 1);
+            }
+          };
+
+          const nextQuestion = () => {
+            if (currentQ + 1 < questions.length) {
+              setCurrentQ(currentQ + 1); setSelectedAns(null); setShowFeedback(false);
+            } else { setScreen('result'); }
+          };
+
+          useEffect(() => { 
+            setTimeout(() => setLoading(false), 1000); 
+          }, []);
+
+          if (loading) {
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'linear-gradient(135deg, #FFE5B4 0%, #FFB6A3 50%, #FF9999 100%)' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div className="loading-spinner"></div>
+                  <p style={{ marginTop: '20px', color: '#5C4033', fontWeight: 600 }}>頛摮貊??鞈?..</p>
+                  <p style={{ marginTop: '10px', color: '#8B4513', fontSize: '14px' }}>皞?撠梁?嚗?/p>
+                </div>
+              </div>
+            );
+          }
+
+          if (screen === 'welcome') {
+            return (
+              <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #FFE5B4 0%, #FFB6A3 50%, #FF9999 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                <div style={{ background: '#FFF8E7', borderRadius: '24px', padding: '40px', textAlign: 'center', boxShadow: '0 20px 40px rgba(255, 107, 107, 0.15)', maxWidth: '400px', width: '100%' }}>
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>?</div>
+                    <h1 style={{ fontSize: '28px', fontWeight: 900, color: '#5C4033', marginBottom: '8px' }}>摮貊??鞈?/h1>
+                    <p style={{ color: '#8B4513', fontSize: '16px', fontWeight: 500 }}>?啁?? 1-6 撟渡?蝺渡?</p>
+                  </div>
+                  <div style={{ marginBottom: '16px', color: '#A0522D', fontSize: '14px', lineHeight: '1.6' }}>
+                    ?? 蝎暸憿<br />
+                    ? 靘?108 隤脩雇閮剛?<br />
+                    ?? ?單???璁?+ ?單?鈭?
+                  </div>
+                  <input
+                    type="text" placeholder="隢撓?乩????? value={userName}
+                    onChange={e => setUserName(e.target.value)}
+                    style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #FFCCCB', fontSize: '16px', fontWeight: 600, textAlign: 'center', marginBottom: '24px', outline: 'none' }}
+                  />
+                  <button
+                    onClick={() => { if (userName.trim()) { playSound('click'); setScreen('menu'); } }}
+                    disabled={!userName.trim()}
+                    style={{ width: '100%', padding: '16px', fontSize: '18px', fontWeight: 800, color: 'white', background: userName.trim() ? 'linear-gradient(135deg, #FF6B6B, #FF9966)' : '#DDD', border: 'none', borderRadius: '16px', cursor: userName.trim() ? 'pointer' : 'not-allowed', boxShadow: userName.trim() ? '0 8px 16px rgba(255, 107, 107, 0.4)' : 'none' }}
+                  >
+                    ??摮貊?銋? ??                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (screen === 'menu') {
+            return (
+              <div style={{ minHeight: '100vh', background: '#FFF8E7' }}>
+                <div style={{ background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', padding: '20px 20px 40px', color: 'white', textAlign: 'center' }}>
+                  <h1 style={{ fontSize: '24px', fontWeight: 900, margin: 0 }}>? 摮貊??鞈?/h1>
+                  <p style={{ fontSize: '16px', fontWeight: 600, opacity: 0.9, margin: 0 }}>?剁?{userName} ??</p>
+                </div>
+                <div style={{ padding: '24px' }}>
+                  <div style={{ marginBottom: '20px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#5C4033', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>潃?/span>
+                      ?豢?撟渡?
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      {[1,2,3,4,5,6].map(g => (
+                        <button key={g} onClick={() => { playSound('click'); setGrade(g); }} style={{ padding: '12px', borderRadius: '12px', border: grade === g ? '3px solid #FF6B6B' : '2px solid #E5E5E5', background: grade === g ? '#FFE5E5' : 'white', fontSize: '16px', fontWeight: 800, color: grade === g ? '#FF6B6B' : '#666', cursor: 'pointer' }}>
+                          {g} 撟渡?
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#5C4033', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>?</span>
+                      ?豢?蝘
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      {['??', '?梯?', '?詨飛'].map(s => {
+                        const meta = SUBJECT_META[s];
+                        return (
+                          <button key={s} onClick={() => { playSound('click'); setSubject(s); }} style={{ padding: '16px 8px', borderRadius: '12px', border: subject === s ? `3px solid ${meta.color}` : '2px solid #E5E5E5', background: subject === s ? meta.bg : 'white', fontSize: '14px', fontWeight: 800, color: subject === s ? meta.color : '#666', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '20px' }}>{meta.icon}</span>
+                            {s}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  <div style={{ background: 'white', borderRadius: '16px', padding: '16px', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#5C4033', marginBottom: '8px' }}>
+                      ?? {subject} {grade}撟渡? - 憿?汗
+                    </h4>
+                    <p style={{ fontSize: '12px', color: '#666' }}>皞?憟質??交??唬???瘥活?冽???5 憿?</p>
+                  </div>
+
+                  <button onClick={() => { playSound('click'); startQuiz(); }} style={{ width: '100%', padding: '20px', fontSize: '20px', fontWeight: 800, color: 'white', background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', border: 'none', borderRadius: '20px', cursor: 'pointer', boxShadow: '0 10px 24px rgba(255, 107, 107, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                    <span>??/span>
+                    ?? {subject} {grade}撟渡? ?
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (screen === 'quiz') {
+            const q = questions[currentQ];
+            if (!q) return <div>Loading...</div>;
+            const progress = ((currentQ + 1) / questions.length) * 100;
+            
+            return (
+              <div style={{ minHeight: '100vh', background: '#FFF8E7' }}>
+                <div style={{ background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', padding: '16px', color: 'white' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <button onClick={() => { playSound('click'); setScreen('menu'); }} style={{ background: 'white', border: 'none', width: '44px', height: '44px', borderRadius: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                      ??
+                    </button>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '18px', fontWeight: 800 }}>{subject} {grade}撟渡?</div>
+                      <div style={{ fontSize: '14px', opacity: 0.9 }}>蝚?{currentQ + 1} / {questions.length} 憿?/div>
+                    </div>
+                    <div style={{ width: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 800 }}>
+                      {score}??                    </div>
+                  </div>
+                  <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.3)', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ width: `${progress}%`, height: '100%', background: 'white', borderRadius: '3px', transition: 'width 0.3s' }}></div>
+                  </div>
+                </div>
+
+                <div style={{ padding: '20px' }}>
+                  <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                      <span style={{ background: SUBJECT_META[subject].bg, color: SUBJECT_META[subject].color, padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
+                        {q.cat}
+                      </span>
+                    </div>
+                    <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#2C3E50', lineHeight: '1.4', marginBottom: '20px' }}>{q.q}</h2>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {q.options.map((opt, idx) => {
+                        let bgColor = 'white', borderColor = '#E5E5E5', textColor = '#555';
+                        
+                        if (showFeedback) {
+                          if (idx === q.answer) {
+                            bgColor = '#D4F3D0'; borderColor = '#28A745'; textColor = '#155724';
+                          } else if (idx === selectedAns) {
+                            bgColor = '#F8D7DA'; borderColor = '#DC3545'; textColor = '#721C24';
+                          }
+                        } else if (selectedAns === idx) {
+                          bgColor = '#E3F2FD'; borderColor = '#2196F3'; textColor = '#1976D2';
+                        }
+                        
+                        return (
+                          <button key={idx} onClick={() => selectAnswer(idx)} disabled={showFeedback} style={{ 
+                            background: bgColor,
+                            border: `2px solid ${borderColor}`,
+                            borderRadius: '12px',
+                            padding: '16px',
+                            fontSize: '16px',
+                            fontWeight: 600,
+                            color: textColor,
+                            cursor: showFeedback ? 'default' : 'pointer',
+                            textAlign: 'left',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            transition: 'all 0.2s'
+                          }}>
+                            <span style={{ 
+                              background: showFeedback && idx === q.answer ? '#28A745' : showFeedback && idx === selectedAns ? '#DC3545' : borderColor === '#2196F3' ? '#2196F3' : '#CCC',
+                              color: 'white',
+                              width: '24px',
+                              height: '24px',
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '14px',
+                              fontWeight: 800
+                            }}>
+                              {String.fromCharCode(65 + idx)}
+                            </span>
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {showFeedback && (
+                      <div style={{ marginTop: '16px', padding: '16px', background: '#F8F9FA', borderRadius: '12px', borderLeft: '4px solid #007BFF', animation: 'slideUp 0.5s ease' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '18px' }}>?</span>
+                          <span style={{ fontWeight: 700, color: '#495057', fontSize: '14px' }}>閰喟敦閫??</span>
+                        </div>
+                        <p style={{ color: '#6C757D', fontSize: '14px', lineHeight: '1.4', margin: 0 }}>
+                          {q.e}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {showFeedback && (
+                    <button onClick={() => { playSound('click'); nextQuestion(); }} style={{ 
+                      width: '100%', 
+                      padding: '18px', 
+                      fontSize: '18px', 
+                      fontWeight: 800, 
+                      color: 'white', 
+                      background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', 
+                      border: 'none', 
+                      borderRadius: '18px', 
+                      cursor: 'pointer', 
+                      boxShadow: '0 8px 20px rgba(255, 107, 107, 0.4)', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      gap: '8px', 
+                      animation: 'slideUp 0.5s ease' 
+                    }}>
+                      {currentQ + 1 < questions.length ? (
+                        <>銝?憿?<span>?塚?</span></>
+                      ) : (
+                        <>?亦?蝯? <span>??</span></>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          if (screen === 'result') {
+            const percentage = Math.round((correctCount / questions.length) * 100);
+            const maxScore = questions.length * 10;
+            
+            return (
+              <div style={{ minHeight: '100vh', background: '#FFF8E7' }}>
+                <div style={{ background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', padding: '20px', color: 'white', textAlign: 'center' }}>
+                  <h1 style={{ fontSize: '24px', fontWeight: 900, margin: 0 }}>?? 蝑?摰?嚗?/h1>
+                </div>
+
+                <div style={{ padding: '24px' }}>
+                  <div style={{ background: 'white', borderRadius: '20px', padding: '24px', marginBottom: '20px', textAlign: 'center', boxShadow: '0 6px 20px rgba(0,0,0,0.08)' }}>
+                    
+                    <div style={{ fontSize: '48px', fontWeight: 900, color: '#FF6B6B', marginBottom: '8px' }}>
+                      {score}
+                      <span style={{ fontSize: '20px', color: '#999', fontWeight: 600 }}>/{maxScore}</span>
+                    </div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#5C4033', marginBottom: '16px' }}>
+                      蝑? {correctCount}/{questions.length} 憿?({percentage}%)
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '16px' }}>
+                      {percentage >= 80 ? (
+                        <>
+                          <span style={{ fontSize: '24px' }}>??</span>
+                          <span style={{ fontSize: '16px', fontWeight: 700, color: '#FFB347' }}>銵函?芰?嚗?/span>
+                        </>
+                      ) : percentage >= 60 ? (
+                        <>
+                          <span style={{ fontSize: '24px' }}>??</span>
+                          <span style={{ fontSize: '16px', fontWeight: 700, color: '#4ECDC4' }}>??銝嚗?/span>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: '24px' }}>?</span>
+                          <span style={{ fontSize: '16px', fontWeight: 700, color: '#FF6B6B' }}>蝜潛??硃嚗?/span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <button onClick={() => { playSound('click'); setScreen('menu'); }} style={{ 
+                      padding: '16px', 
+                      fontSize: '16px', 
+                      fontWeight: 700, 
+                      color: '#666', 
+                      background: 'white', 
+                      border: '2px solid #E5E5E5', 
+                      borderRadius: '16px', 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}>
+                      <span>??</span> ???                    </button>
+                    <button onClick={() => { playSound('click'); startQuiz(); }} style={{ 
+                      padding: '16px', 
+                      fontSize: '16px', 
+                      fontWeight: 700, 
+                      color: 'white', 
+                      background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', 
+                      border: 'none', 
+                      borderRadius: '16px', 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}>
+                      <span>??</span> ????                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return null;
+        }
+
+        // 皜脫??蝔?
+        try {
+          ReactDOM.render(React.createElement(ElementaryPracticeApp), document.getElementById('root'));
+        } catch (error) {
+          console.error('皜脫?憭望?:', error);
+          document.getElementById('root').innerHTML = `
+            <div class="error-message">
+              <h3>? App ??憭望?</h3>
+              <p>隢??唳???Ｘ??舐窗???/p>
+              <button onclick="location.reload()" style="margin-top: 10px; padding: 10px 20px; background: #FF6B6B; color: white; border: none; border-radius: 8px; cursor: pointer;">?頛</button>
+            </div>
+          `;
+        }
+    </script>
+</body>
+</html>
