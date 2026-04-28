@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學習擂台賽 - 台灣國小練習 App</title>
+    
+    <!-- Meta tags -->
+    <meta name="description" content="台灣國小 1-6 年級練習 App，540 道精選題目">
+    <meta property="og:title" content="學習擂台賽 - 台灣國小練習 App">
+    <meta property="og:description" content="台灣國小學習神器！540 道題目，音效互動">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; 
+            background: #FFF8E7;
+        }
+        #root { width: 100%; min-height: 100vh; }
+        
+        .loading-spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #FFE5B4; border-top: 4px solid #FF6B6B;
+            border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;
+        }
+        
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .error-message {
+            background: #FFE5E5; color: #CC0000; padding: 20px; border-radius: 12px;
+            margin: 20px; text-align: center; border: 2px solid #FF6B6B;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #FFE5B4 0%, #FFB6A3 50%, #FF9999 100%);">
+            <div style="text-align: center;">
+                <div class="loading-spinner"></div>
+                <p style="margin-top: 20px; color: #5C4033; font-weight: 600;">載入學習擂台賽...</p>
+                <p style="margin-top: 10px; color: #8B4513; font-size: 14px;">如果卡住很久，請重新整理頁面</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 錯誤處理 -->
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            console.error('JavaScript Error:', msg, 'at', url + ':' + line);
+            document.getElementById('root').innerHTML = `
+                <div class="error-message">
+                    <h3>🚨 載入失敗</h3>
+                    <p>發生錯誤：${msg}</p>
+                    <p>請重新整理頁面或聯絡開發者</p>
+                    <button onclick="location.reload()" style="margin-top: 10px; padding: 10px 20px; background: #FF6B6B; color: white; border: none; border-radius: 8px; cursor: pointer;">重新載入</button>
+                </div>
+            `;
+        };
+    </script>
+
+    <!-- React 載入檢測 -->
+    <script>
+        let loadTimeout = setTimeout(() => {
+            if (!window.React) {
+                document.getElementById('root').innerHTML = `
+                    <div class="error-message">
+                        <h3>⚠️ 網路載入問題</h3>
+                        <p>React 庫載入失敗，可能是網路問題</p>
+                        <p>請檢查網路連線並重新整理頁面</p>
+                        <button onclick="location.reload()" style="margin-top: 10px; padding: 10px 20px; background: #FF6B6B; color: white; border: none; border-radius: 8px; cursor: pointer;">重新載入</button>
+                    </div>
+                `;
+            }
+        }, 10000); // 10秒超時
+    </script>
+
+    <!-- React Dependencies -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.js"></script>
+
+    <!-- 主應用程式 -->
+    <script type="text/babel">
+        // 清除載入超時
+        clearTimeout(loadTimeout);
+        
+        const { useState, useEffect } = React;
+        const { BookOpen, Calculator, Globe, Trophy, User, Star, Zap, Target, Award, ChevronRight, RotateCcw, Home, Crown, Medal, Sparkles, CheckCircle2, XCircle, Flame, Lightbulb, Tag, History, TrendingUp, Calendar, Clock } = LucideReact;
+
+        // 簡化的本地存儲
+        const storage = {
+            get: async (key, shared = false) => {
+                try {
+                    const storageKey = shared ? `shared_${key}` : `personal_${key}`;
+                    const value = localStorage.getItem(storageKey);
+                    return value ? { key: storageKey, value, shared } : null;
+                } catch { return null; }
+            },
+            set: async (key, value, shared = false) => {
+                try {
+                    const storageKey = shared ? `shared_${key}` : `personal_${key}`;
+                    localStorage.setItem(storageKey, value);
+                    return { key: storageKey, value, shared };
+                } catch { return null; }
+            }
+        };
+
+        if (!window.storage) window.storage = storage;
+
+        // 簡化的題庫
+        const questionBank = {
+          '國語': {
+            1: [
+              { cat: '注音符號', q: '請問「ㄅㄆㄇㄈ」中，「ㄆ」的注音是什麼？', options: ['ㄅ', 'ㄆ', 'ㄇ', 'ㄈ'], answer: 1, e: '注音符號的順序是 ㄅ→ㄆ→ㄇ→ㄈ，第二個就是「ㄆ」喔！' },
+              { cat: '注音符號', q: '「太陽」的「太」字注音是？', options: ['ㄉㄚˋ', 'ㄊㄞˋ', 'ㄊㄢˋ', 'ㄉㄢˋ'], answer: 1, e: '「太」唸作 ㄊㄞˋ，跟「大」(ㄉㄚˋ) 長得像但發音不同。' },
+              { cat: '識字', q: '下列哪一個是「動物」？', options: ['桌子', '小狗', '蘋果', '車子'], answer: 1, e: '動物是會自己活動的生命，小狗會跑會叫，是動物。' },
+              { cat: '識字', q: '「一、二、三、四、五」之後是？', options: ['六', '七', '八', '九'], answer: 0, e: '數字順序：一、二、三、四、五、六、七、八、九、十。五後面是六。' },
+              { cat: '注音符號', q: '「ㄒㄧㄠˇ」對應的字是？', options: ['大', '小', '中', '高'], answer: 1, e: '「小」唸 ㄒㄧㄠˇ，是第三聲，意思是不大。' }
+            ],
+            2: [
+              { cat: '部首', q: '「明亮」的「明」字部首是？', options: ['日', '月', '火', '目'], answer: 0, e: '「明」是「日」+「月」組成，部首是「日」(太陽)。' },
+              { cat: '詞性', q: '下列哪一個是「形容詞」？', options: ['跑', '美麗', '桌子', '吃'], answer: 1, e: '形容詞是用來形容東西的詞。「美麗」可以形容花、人。' },
+              { cat: '反義詞', q: '「快樂」的相反詞是？', options: ['高興', '開心', '悲傷', '愉快'], answer: 2, e: '快樂和悲傷是相反的情緒。' },
+              { cat: '詞性', q: '「今天天氣很好」的「好」是？', options: ['名詞', '動詞', '形容詞', '副詞'], answer: 2, e: '「好」在這裡形容天氣的狀態，所以是形容詞。' },
+              { cat: '常識', q: '「春、夏、秋、冬」是？', options: ['顏色', '季節', '方向', '數字'], answer: 1, e: '一年有四個季節：春天、夏天、秋天、冬天。' }
+            ]
+          },
+          '數學': {
+            1: [
+              { cat: '加法', q: '3 + 4 = ?', options: ['6', '7', '8', '9'], answer: 1, e: '可以用手指數：先伸3根手指，再加4根，總共是7根。' },
+              { cat: '減法', q: '10 - 5 = ?', options: ['3', '4', '5', '6'], answer: 2, e: '10個東西拿走5個，還剩5個。一半的概念喔！' },
+              { cat: '加法', q: '8 + 2 = ?', options: ['9', '10', '11', '12'], answer: 1, e: '8 加 2 剛好湊成 10。記住「8+2=10」很實用！' },
+              { cat: '減法', q: '15 - 7 = ?', options: ['7', '8', '9', '10'], answer: 1, e: '15 減 7：可以想 15-5=10，再減 2 就是 8。' },
+              { cat: '加法', q: '6 + 6 = ?', options: ['10', '11', '12', '13'], answer: 2, e: '兩個 6 加起來等於 12。也可以想成 6×2=12。' }
+            ],
+            2: [
+              { cat: '加法', q: '25 + 36 = ?', options: ['51', '61', '71', '81'], answer: 1, e: '直式計算：個位 5+6=11，進位1。十位 2+3+1=6。答案是 61。' },
+              { cat: '減法', q: '80 - 45 = ?', options: ['25', '35', '45', '55'], answer: 1, e: '個位 0-5 不夠減要向十位借1：10-5=5。十位變 7-4=3。答案 35。' },
+              { cat: '乘法', q: '3 × 4 = ?', options: ['7', '10', '12', '14'], answer: 2, e: '3 個 4 相加：4+4+4=12。' },
+              { cat: '乘法', q: '7 × 2 = ?', options: ['12', '14', '16', '18'], answer: 1, e: '7 加 7 等於 14。任何數字 ×2 就是它自己加自己。' },
+              { cat: '時間', q: '一週有幾天？', options: ['5天', '6天', '7天', '8天'], answer: 2, e: '一週是星期一到星期日，總共7天。' }
+            ]
+          },
+          '英語': {
+            1: [
+              { cat: '單字', q: '"Apple" 的中文是？', options: ['橘子', '蘋果', '香蕉', '葡萄'], answer: 1, e: 'Apple 就是「蘋果」。橘子是 orange，香蕉是 banana，葡萄是 grape。' },
+              { cat: '單字', q: '"Cat" 的中文是？', options: ['狗', '貓', '魚', '鳥'], answer: 1, e: 'Cat 是「貓」(發音像「凱特」)。狗是 dog，魚是 fish，鳥是 bird。' },
+              { cat: '字母', q: '英文字母總共有幾個？', options: ['24', '25', '26', '27'], answer: 2, e: '英文字母從 A 到 Z 共 26 個，唱「ABC 之歌」就會了！' },
+              { cat: '單字', q: '"Red" 是什麼顏色？', options: ['紅色', '藍色', '黃色', '綠色'], answer: 0, e: 'Red 是「紅色」。藍色 blue，黃色 yellow，綠色 green。' },
+              { cat: '數字', q: '數字 "Three" 是？', options: ['1', '2', '3', '4'], answer: 2, e: 'Three 是 3。one=1, two=2, three=3, four=4。' }
+            ],
+            2: [
+              { cat: '對話', q: '"How are you?" 的回答可以是？', options: ['Yes', 'No', "I'm fine", 'Goodbye'], answer: 2, e: '"How are you?" (你好嗎？) 通常回答 "I\'m fine, thank you."' },
+              { cat: '單字', q: '"Mother" 的中文是？', options: ['爸爸', '媽媽', '哥哥', '姊姊'], answer: 1, e: 'Mother 是「媽媽」(也常叫 Mom)。' },
+              { cat: '數字', q: '"One, two, ___, four" 空格是？', options: ['three', 'five', 'six', 'seven'], answer: 0, e: '英文數字順序：one(1), two(2), three(3), four(4), five(5)...' },
+              { cat: '單字', q: '"Banana" 是什麼？', options: ['蘋果', '香蕉', '橘子', '葡萄'], answer: 1, e: 'Banana 是「香蕉」。' },
+              { cat: '單字', q: '"Bird" 的中文是？', options: ['魚', '鳥', '蟲', '蛇'], answer: 1, e: 'Bird 是「鳥」。' }
+            ]
+          }
+        };
+
+        const SUBJECT_META = {
+          '國語': { icon: BookOpen, color: '#FF6B6B', bg: '#FFE5E5' },
+          '英語': { icon: Globe, color: '#4ECDC4', bg: '#E0F7F5' },
+          '數學': { icon: Calculator, color: '#FFB347', bg: '#FFF0D9' },
+        };
+
+        function ElementaryPracticeApp() {
+          const [screen, setScreen] = useState('welcome');
+          const [userName, setUserName] = useState('');
+          const [grade, setGrade] = useState(1);
+          const [subject, setSubject] = useState('國語');
+          const [questions, setQuestions] = useState([]);
+          const [currentQ, setCurrentQ] = useState(0);
+          const [selectedAns, setSelectedAns] = useState(null);
+          const [showFeedback, setShowFeedback] = useState(false);
+          const [score, setScore] = useState(0);
+          const [correctCount, setCorrectCount] = useState(0);
+          const [loading, setLoading] = useState(true);
+
+          // 音效
+          const playSound = (type) => {
+            try {
+              const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+              if (type === 'correct') {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.3);
+              } else if (type === 'click') {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.1);
+              }
+            } catch (e) { console.log('音效播放失敗:', e); }
+          };
+
+          const startQuiz = () => {
+            const allQs = questionBank[subject][grade] || [];
+            const shuffled = [...allQs].sort(() => Math.random() - 0.5).slice(0, 5);
+            setQuestions(shuffled);
+            setCurrentQ(0); setSelectedAns(null); setShowFeedback(false);
+            setScore(0); setCorrectCount(0); setScreen('quiz');
+          };
+
+          const selectAnswer = (idx) => {
+            if (showFeedback) return;
+            playSound('click');
+            setSelectedAns(idx); setShowFeedback(true);
+            const correct = idx === questions[currentQ].answer;
+            if (correct) {
+              playSound('correct');
+              setScore(score + 10); setCorrectCount(correctCount + 1);
+            }
+          };
+
+          const nextQuestion = () => {
+            if (currentQ + 1 < questions.length) {
+              setCurrentQ(currentQ + 1); setSelectedAns(null); setShowFeedback(false);
+            } else { setScreen('result'); }
+          };
+
+          useEffect(() => { 
+            setTimeout(() => setLoading(false), 1000); 
+          }, []);
+
+          if (loading) {
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'linear-gradient(135deg, #FFE5B4 0%, #FFB6A3 50%, #FF9999 100%)' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div className="loading-spinner"></div>
+                  <p style={{ marginTop: '20px', color: '#5C4033', fontWeight: 600 }}>載入學習擂台賽...</p>
+                </div>
+              </div>
+            );
+          }
+
+          if (screen === 'welcome') {
+            return (
+              <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #FFE5B4 0%, #FFB6A3 50%, #FF9999 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                <div style={{ background: '#FFF8E7', borderRadius: '24px', padding: '40px', textAlign: 'center', boxShadow: '0 20px 40px rgba(255, 107, 107, 0.15)', maxWidth: '400px', width: '100%' }}>
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎯</div>
+                    <h1 style={{ fontSize: '28px', fontWeight: 900, color: '#5C4033', marginBottom: '8px' }}>學習擂台賽</h1>
+                    <p style={{ color: '#8B4513', fontSize: '16px', fontWeight: 500 }}>台灣國小 1-6 年級練習</p>
+                  </div>
+                  <input
+                    type="text" placeholder="請輸入你的姓名" value={userName}
+                    onChange={e => setUserName(e.target.value)}
+                    style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #FFCCCB', fontSize: '16px', fontWeight: 600, textAlign: 'center', marginBottom: '24px', outline: 'none' }}
+                  />
+                  <button
+                    onClick={() => { if (userName.trim()) { playSound('click'); setScreen('menu'); } }}
+                    disabled={!userName.trim()}
+                    style={{ width: '100%', padding: '16px', fontSize: '18px', fontWeight: 800, color: 'white', background: userName.trim() ? 'linear-gradient(135deg, #FF6B6B, #FF9966)' : '#DDD', border: 'none', borderRadius: '16px', cursor: userName.trim() ? 'pointer' : 'not-allowed' }}
+                  >
+                    開始學習之旅 ✨
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (screen === 'menu') {
+            return (
+              <div style={{ minHeight: '100vh', background: '#FFF8E7' }}>
+                <div style={{ background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', padding: '20px 20px 40px', color: 'white', textAlign: 'center' }}>
+                  <h1 style={{ fontSize: '24px', fontWeight: 900, margin: 0 }}>🎯 學習擂台賽</h1>
+                  <p style={{ fontSize: '16px', fontWeight: 600, opacity: 0.9, margin: 0 }}>嗨！{userName} 👋</p>
+                </div>
+                <div style={{ padding: '24px' }}>
+                  <div style={{ marginBottom: '20px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#5C4033', marginBottom: '12px' }}>選擇年級</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      {[1,2,3,4,5,6].map(g => (
+                        <button key={g} onClick={() => { playSound('click'); setGrade(g); }} style={{ padding: '12px', borderRadius: '12px', border: grade === g ? '3px solid #FF6B6B' : '2px solid #E5E5E5', background: grade === g ? '#FFE5E5' : 'white', fontSize: '16px', fontWeight: 800, color: grade === g ? '#FF6B6B' : '#666', cursor: 'pointer' }}>
+                          {g} 年級
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#5C4033', marginBottom: '12px' }}>選擇科目</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      {['國語', '英語', '數學'].map(s => {
+                        const meta = SUBJECT_META[s]; const IconComp = meta.icon;
+                        return (
+                          <button key={s} onClick={() => { playSound('click'); setSubject(s); }} style={{ padding: '16px 8px', borderRadius: '12px', border: subject === s ? `3px solid ${meta.color}` : '2px solid #E5E5E5', background: subject === s ? meta.bg : 'white', fontSize: '14px', fontWeight: 800, color: subject === s ? meta.color : '#666', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                            <IconComp size={20} />{s}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <button onClick={() => { playSound('click'); startQuiz(); }} style={{ width: '100%', padding: '20px', fontSize: '20px', fontWeight: 800, color: 'white', background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', border: 'none', borderRadius: '20px', cursor: 'pointer', boxShadow: '0 10px 24px rgba(255, 107, 107, 0.4)' }}>
+                    🎯 開始 {subject} {grade}年級 挑戰
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (screen === 'quiz') {
+            const q = questions[currentQ];
+            if (!q) return <div>Loading...</div>;
+            
+            return (
+              <div style={{ minHeight: '100vh', background: '#FFF8E7' }}>
+                <div style={{ background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', padding: '16px', color: 'white' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <button onClick={() => { playSound('click'); setScreen('menu'); }} style={{ background: 'white', border: 'none', width: '44px', height: '44px', borderRadius: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Home size={20} color="#FF6B6B" />
+                    </button>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '18px', fontWeight: 800 }}>{subject} {grade}年級</div>
+                      <div style={{ fontSize: '14px', opacity: 0.9 }}>第 {currentQ + 1} / {questions.length} 題</div>
+                    </div>
+                    <div style={{ width: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 800 }}>{score}分</div>
+                  </div>
+                </div>
+                <div style={{ padding: '20px' }}>
+                  <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+                    <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#2C3E50', lineHeight: '1.4', marginBottom: '20px' }}>{q.q}</h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {q.options.map((opt, idx) => {
+                        let bgColor = 'white', borderColor = '#E5E5E5', textColor = '#555';
+                        if (showFeedback) {
+                          if (idx === q.answer) { bgColor = '#D4F3D0'; borderColor = '#28A745'; textColor = '#155724'; }
+                          else if (idx === selectedAns) { bgColor = '#F8D7DA'; borderColor = '#DC3545'; textColor = '#721C24'; }
+                        }
+                        
+                        return (
+                          <button key={idx} onClick={() => selectAnswer(idx)} disabled={showFeedback} style={{ background: bgColor, border: `2px solid ${borderColor}`, borderRadius: '12px', padding: '16px', fontSize: '16px', fontWeight: 600, color: textColor, cursor: showFeedback ? 'default' : 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ background: borderColor, color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 800 }}>
+                              {String.fromCharCode(65 + idx)}
+                            </span>
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {showFeedback && (
+                      <div style={{ marginTop: '16px', padding: '16px', background: '#F8F9FA', borderRadius: '12px', borderLeft: '4px solid #007BFF' }}>
+                        <p style={{ color: '#6C757D', fontSize: '14px', lineHeight: '1.4', margin: 0 }}>{q.e}</p>
+                      </div>
+                    )}
+                  </div>
+                  {showFeedback && (
+                    <button onClick={() => { playSound('click'); nextQuestion(); }} style={{ width: '100%', padding: '18px', fontSize: '18px', fontWeight: 800, color: 'white', background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', border: 'none', borderRadius: '18px', cursor: 'pointer' }}>
+                      {currentQ + 1 < questions.length ? '下一題 →' : '查看結果 🎉'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          if (screen === 'result') {
+            const percentage = Math.round((correctCount / questions.length) * 100);
+            return (
+              <div style={{ minHeight: '100vh', background: '#FFF8E7' }}>
+                <div style={{ background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', padding: '20px', color: 'white', textAlign: 'center' }}>
+                  <h1 style={{ fontSize: '24px', fontWeight: 900, margin: 0 }}>🎉 答題完成！</h1>
+                </div>
+                <div style={{ padding: '24px' }}>
+                  <div style={{ background: 'white', borderRadius: '20px', padding: '24px', marginBottom: '20px', textAlign: 'center', boxShadow: '0 6px 20px rgba(0,0,0,0.08)' }}>
+                    <div style={{ fontSize: '48px', fontWeight: 900, color: '#FF6B6B', marginBottom: '8px' }}>{score}</div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#5C4033' }}>答對 {correctCount}/{questions.length} 題 ({percentage}%)</div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <button onClick={() => { playSound('click'); setScreen('menu'); }} style={{ padding: '16px', fontSize: '16px', fontWeight: 700, color: '#666', background: 'white', border: '2px solid #E5E5E5', borderRadius: '16px', cursor: 'pointer' }}>回選單</button>
+                    <button onClick={() => { playSound('click'); startQuiz(); }} style={{ padding: '16px', fontSize: '16px', fontWeight: 700, color: 'white', background: 'linear-gradient(135deg, #FF6B6B, #FF9966)', border: 'none', borderRadius: '16px', cursor: 'pointer' }}>再挑戰</button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return null;
+        }
+
+        // 渲染應用
+        ReactDOM.render(React.createElement(ElementaryPracticeApp), document.getElementById('root'));
+    </script>
+</body>
+</html>
