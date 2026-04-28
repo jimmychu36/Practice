@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學習擂台賽 - 穩定版 (排行榜+競賽)</title>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: #FFF8E7; }
+        .app { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        .card { background: white; padding: 40px; border-radius: 24px; box-shadow: 0 20px 40px rgba(255, 107, 107, 0.15); text-align: center; max-width: 420px; width: 100%; }
+        .title { font-size: 28px; font-weight: 900; color: #5C4033; margin-bottom: 16px; }
+        .input { width: 100%; padding: 16px; border-radius: 16px; border: 2px solid #FFCCCB; font-size: 16px; font-weight: 600; text-align: center; margin-bottom: 24px; outline: none; font-family: inherit; }
+        .button { width: 100%; padding: 16px; font-size: 18px; font-weight: 800; color: white; background: linear-gradient(135deg, #FF6B6B, #FF9966); border: none; border-radius: 16px; cursor: pointer; font-family: inherit; }
+        .button:disabled { background: #DDD; cursor: not-allowed; }
+        .menu { background: #FFF8E7; min-height: 100vh; padding: 20px; }
+        .header { background: linear-gradient(135deg, #FF6B6B, #FF9966); padding: 20px; border-radius: 20px; color: white; text-align: center; margin-bottom: 20px; }
+        .content { max-width: 500px; margin: 0 auto; }
+        .section { margin-bottom: 20px; }
+        .section-title { font-size: 16px; font-weight: 800; color: #5C4033; margin-bottom: 12px; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .option-btn { padding: 12px; border-radius: 12px; border: 2px solid #E5E5E5; background: white; font-size: 16px; font-weight: 800; color: #666; cursor: pointer; font-family: inherit; }
+        .option-btn.selected { border-color: #FF6B6B; background: #FFE5E5; color: #FF6B6B; }
+        .info-box { background: white; border-radius: 16px; padding: 16px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .profile-card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+    </style>
+</head>
+<body>
+    <div id="app" class="app">
+        <div class="card">
+            <div class="title">🏆 學習擂台賽</div>
+            <div style="color: #8B4513; margin-bottom: 20px;">完整競賽版載入中...</div>
+        </div>
+    </div>
+
+    <script>
+        // === 基本狀態 ===
+        let screen = 'welcome';
+        let playerName = '';
+        let grade = 1;
+        let subject = '國語';
+        let quiz = null;
+        let qIndex = 0;
+        let points = 0;
+        let correct = 0;
+        let selected = null;
+        let feedback = false;
+        let combo = 0;
+        let maxCombo = 0;
+
+        // === 個人檔案 (競賽核心) ===
+        let profile = {
+            totalPoints: 0,
+            totalRounds: 0,
+            totalCorrect: 0,
+            accuracy: 0,
+            bestScores: {},
+            recentGames: []
+        };
+
+        // === 排行榜 (競賽核心) ===
+        let rankings = [];
+
+        // === 題庫 (完整版) ===
+        const allQuestions = {
+          '國語': {
+            1: [
+              { type: '注音', q: '「ㄆ」是第幾個注音？', opts: ['第一', '第二', '第三', '第四'], ans: 1, hint: 'ㄅㄆㄇㄈ，ㄆ是第二個' },
+              { type: '識字', q: '哪個是動物？', opts: ['桌子', '小狗', '蘋果', '車子'], ans: 1, hint: '小狗會跑會叫' },
+              { type: '注音', q: '「小」怎麼念？', opts: ['ㄒㄧㄠ', 'ㄒㄧㄠˇ', 'ㄒㄧㄠˋ', 'ㄒㄧㄠˊ'], ans: 1, hint: '小 = ㄒㄧㄠˇ' },
+              { type: '反義', q: '「上」的相反？', opts: ['左', '右', '下', '中'], ans: 2, hint: '上↔下' },
+              { type: '識字', q: '爸媽是什麼？', opts: ['朋友', '家人', '老師', '同學'], ans: 1, hint: '最親的家人' },
+              { type: '注音', q: '「水」怎麼念？', opts: ['ㄕㄨㄟˇ', 'ㄕㄨㄟˋ', 'ㄕㄨㄟ', 'ㄕㄨㄟˊ'], ans: 0, hint: '水=ㄕㄨㄟˇ' },
+              { type: '部首', q: '「人」的部首？', opts: ['口', '人', '木', '日'], ans: 1, hint: '人本身就是部首' },
+              { type: '識字', q: '「白」是什麼顏色？', opts: ['黑', '紅', '白', '藍'], ans: 2, hint: '白=白色' }
+            ],
+            2: [
+              { type: '部首', q: '「明」的部首？', opts: ['日', '月', '火', '目'], ans: 0, hint: '明=日+月' },
+              { type: '詞性', q: '「美麗」是？', opts: ['名詞', '動詞', '形容詞', '副詞'], ans: 2, hint: '形容用的詞' },
+              { type: '反義', q: '「快樂」相反？', opts: ['高興', '開心', '悲傷', '愉快'], ans: 2, hint: '快樂↔悲傷' },
+              { type: '常識', q: '春夏秋冬是？', opts: ['顏色', '季節', '方向', '數字'], ans: 1, hint: '四個季節' },
+              { type: '成語', q: '「鳥語花香」形容？', opts: ['春天', '夏天', '秋天', '冬天'], ans: 0, hint: '春天景象' },
+              { type: '部首', q: '「努」的部首？', opts: ['女', '力', '又', '口'], ans: 1, hint: '需要力氣' },
+              { type: '句型', q: '完整句子？', opts: ['漂亮花', '我讀書', '在公園', '小狗'], ans: 1, hint: '誰+做什麼' },
+              { type: '常識', q: '大象是？', opts: ['鳥類', '魚類', '哺乳類', '昆蟲'], ans: 2, hint: '會餵奶' }
+            ],
+            3: [
+              { type: '成語', q: '「一心一意」？', opts: ['聰明', '專心', '快樂', '多想'], ans: 1, hint: '專心做事' },
+              { type: '修辭', q: '「月亮像船」？', opts: ['譬喻', '擬人', '排比', '誇飾'], ans: 0, hint: '用像比較' },
+              { type: '成語', q: '「畫蛇添足」？', opts: ['畫技好', '多餘', '蛇美', '腳重要'], ans: 1, hint: '蛇不需要腳' },
+              { type: '修辭', q: '「花招手」？', opts: ['譬喻', '擬人', '排比', '誇飾'], ans: 1, hint: '花當人寫' },
+              { type: '成語', q: '「守株待兔」？', opts: ['勤勞', '不僥倖', '兔多', '樹重要'], ans: 1, hint: '不能靠運氣' }
+            ],
+            4: [
+              { type: '成語', q: '「磨杵成針」？', opts: ['要耐心', '鐵硬', '針細', '石粗'], ans: 0, hint: '持之以恆' },
+              { type: '修辭', q: '「三歲都會」？', opts: ['譬喻', '誇飾', '擬人', '對偶'], ans: 1, hint: '誇大簡單' },
+              { type: '成語', q: '「愚公移山」？', opts: ['愚笨', '不屈不撓', '搬家', '挖土'], ans: 1, hint: '堅持不懈' },
+              { type: '成語', q: '「九牛一毛」？', opts: ['動物多', '微不足道', '毛多', '力大'], ans: 1, hint: '很少很小' },
+              { type: '成語', q: '「井底之蛙」？', opts: ['蛙多', '見識短', '井深', '水清'], ans: 1, hint: '眼界狹窄' }
+            ],
+            5: [
+              { type: '成語', q: '「青出於藍」？', opts: ['顏色', '學生勝老師', '染布', '植物'], ans: 1, hint: '後輩超前輩' },
+              { type: '修辭', q: '「震耳欲聾」？', opts: ['譬喻', '誇飾', '擬人', '對偶'], ans: 1, hint: '誇大響亮' },
+              { type: '成語', q: '「老馬識途」？', opts: ['老人智慧', '馬聰明', '有經驗', '迷路'], ans: 2, hint: '經驗豐富' },
+              { type: '成語', q: '「水落石出」？', opts: ['真相大白', '水乾淨', '石多', '河乾'], ans: 0, hint: '真相顯露' },
+              { type: '成語', q: '「鴉雀無聲」？', opts: ['鳥多', '很安靜', '鳥飛', '聲大'], ans: 1, hint: '非常安靜' }
+            ],
+            6: [
+              { type: '成語', q: '「破釜沉舟」？', opts: ['船破', '下決心', '煮飯', '搬家'], ans: 1, hint: '背水一戰' },
+              { type: '修辭', q: '「月亮爬樹」？', opts: ['誇飾', '擬人', '譬喻', '對偶'], ans: 1, hint: '月亮當人' },
+              { type: '成語', q: '「居安思危」？', opts: ['住危險', '安時想危險', '搬家', '害怕'], ans: 1, hint: '有憂患意識' },
+              { type: '成語', q: '「鶴立雞群」？', opts: ['動物處', '才能突出', '鳥多', '個高'], ans: 1, hint: '出類拔萃' },
+              { type: '成語', q: '「溫故知新」？', opts: ['複習學新', '天氣', '換新', '懷舊'], ans: 0, hint: '複習很重要' }
+            ]
+          },
+          '數學': {
+            1: [
+              { type: '加法', q: '3 + 4 = ?', opts: ['6', '7', '8', '9'], ans: 1, hint: '3個加4個' },
+              { type: '減法', q: '10 - 5 = ?', opts: ['3', '4', '5', '6'], ans: 2, hint: '10拿走5個' },
+              { type: '加法', q: '6 + 6 = ?', opts: ['10', '11', '12', '13'], ans: 2, hint: '6+6=12' },
+              { type: '減法', q: '15 - 7 = ?', opts: ['7', '8', '9', '10'], ans: 1, hint: '15-7=8' },
+              { type: '比較', q: '哪個最大？', opts: ['3', '8', '5', '1'], ans: 1, hint: '8最大' },
+              { type: '加法', q: '5 + 5 = ?', opts: ['9', '10', '11', '12'], ans: 1, hint: '5+5=10' },
+              { type: '減法', q: '12 - 6 = ?', opts: ['5', '6', '7', '8'], ans: 1, hint: '一半是6' },
+              { type: '加法', q: '7 + 3 = ?', opts: ['9', '10', '11', '12'], ans: 1, hint: '湊成10' }
+            ],
+            2: [
+              { type: '加法', q: '25 + 36 = ?', opts: ['51', '61', '71', '81'], ans: 1, hint: '進位計算' },
+              { type: '乘法', q: '3 × 4 = ?', opts: ['7', '10', '12', '14'], ans: 2, hint: '3個4' },
+              { type: '除法', q: '12 ÷ 3 = ?', opts: ['3', '4', '5', '6'], ans: 1, hint: '12分3份' },
+              { type: '時間', q: '一週幾天？', opts: ['5', '6', '7', '8'], ans: 2, hint: '星期一到日' },
+              { type: '乘法', q: '5 × 3 = ?', opts: ['13', '15', '17', '20'], ans: 1, hint: '5個3' },
+              { type: '減法', q: '80 - 45 = ?', opts: ['25', '35', '45', '55'], ans: 1, hint: '借位計算' },
+              { type: '加法', q: '48 + 27 = ?', opts: ['65', '75', '85', '95'], ans: 1, hint: '進位相加' },
+              { type: '乘法', q: '6 × 5 = ?', opts: ['25', '30', '35', '40'], ans: 1, hint: '6個5' }
+            ],
+            3: [
+              { type: '除法', q: '72 ÷ 8 = ?', opts: ['7', '8', '9', '10'], ans: 2, hint: '8×9=72' },
+              { type: '分數', q: '1/2 + 1/4 = ?', opts: ['1/3', '2/6', '3/4', '2/4'], ans: 2, hint: '通分計算' },
+              { type: '小數', q: '0.5 + 0.3 = ?', opts: ['0.7', '0.8', '0.9', '1.0'], ans: 1, hint: '小數加法' },
+              { type: '面積', q: '長4寬3面積？', opts: ['7', '12', '14', '16'], ans: 1, hint: '長×寬' },
+              { type: '周長', q: '邊長5周長？', opts: ['15', '20', '25', '30'], ans: 1, hint: '5×4邊' },
+              { type: '乘法', q: '12 × 7 = ?', opts: ['74', '84', '94', '104'], ans: 1, hint: '12×7=84' },
+              { type: '時間', q: '2小時30分=?分', opts: ['130', '140', '150', '160'], ans: 2, hint: '120+30' },
+              { type: '分數', q: '2/3比1/2？', opts: ['2/3大', '1/2大', '一樣', '無法比'], ans: 0, hint: '通分比較' }
+            ],
+            4: [
+              { type: '分數', q: '3/4 - 1/2 = ?', opts: ['1/4', '1/2', '2/4', '3/6'], ans: 0, hint: '通分相減' },
+              { type: '小數', q: '2.8 + 1.7 = ?', opts: ['4.5', '4.6', '4.7', '4.8'], ans: 0, hint: '小數進位' },
+              { type: '乘法', q: '25 × 4 = ?', opts: ['90', '100', '110', '120'], ans: 1, hint: '25×4=100' },
+              { type: '面積', q: '底6高4三角形面積？', opts: ['10', '12', '24', '20'], ans: 1, hint: '底×高÷2' },
+              { type: '百分比', q: '50% = ?', opts: ['1/2', '1/3', '1/4', '1/5'], ans: 0, hint: '50/100' },
+              { type: '除法', q: '144 ÷ 12 = ?', opts: ['10', '11', '12', '13'], ans: 2, hint: '12×12' },
+              { type: '體積', q: '長2寬2高3體積？', opts: ['7', '12', '14', '8'], ans: 1, hint: '長×寬×高' },
+              { type: '比例', q: '1:2 = 3:?', opts: ['4', '5', '6', '7'], ans: 2, hint: '等比例' }
+            ],
+            5: [
+              { type: '分數', q: '2/5 + 3/10 = ?', opts: ['5/15', '5/10', '7/10', '1/2'], ans: 2, hint: '通分相加' },
+              { type: '小數', q: '0.25 × 4 = ?', opts: ['0.8', '1.0', '1.2', '1.4'], ans: 1, hint: '1/4×4' },
+              { type: '百分比', q: '75% = ?', opts: ['1/4', '1/2', '3/4', '2/3'], ans: 2, hint: '75/100' },
+              { type: '圓形', q: '半徑3直徑？', opts: ['6', '9', '12', '15'], ans: 0, hint: '直徑=半徑×2' },
+              { type: '平均', q: '10,20,30平均？', opts: ['15', '20', '25', '30'], ans: 1, hint: '總和÷3' },
+              { type: '面積', q: '邊長8正方形面積？', opts: ['32', '64', '16', '48'], ans: 1, hint: '邊長平方' },
+              { type: '分數', q: '4/9 × 3/8 = ?', opts: ['12/72', '1/6', '7/17', '12/17'], ans: 1, hint: '分子×分子' },
+              { type: '小數', q: '8.4 ÷ 2.1 = ?', opts: ['3', '4', '5', '6'], ans: 1, hint: '84÷21' }
+            ],
+            6: [
+              { type: '分數', q: '5/6 ÷ 2/3 = ?', opts: ['5/4', '10/18', '5/9', '15/12'], ans: 0, hint: '除法變乘法' },
+              { type: '小數', q: '12.5 × 0.8 = ?', opts: ['9.0', '10.0', '10.5', '11.0'], ans: 1, hint: '12.5×4/5' },
+              { type: '百分比', q: '200元打8折？', opts: ['160', '180', '150', '140'], ans: 0, hint: '200×0.8' },
+              { type: '圓形', q: '半徑5周長？π=3.14', opts: ['15.7', '31.4', '78.5', '25'], ans: 1, hint: '2πr' },
+              { type: '應用題', q: '24人男女比5:3男生？', opts: ['9', '12', '15', '18'], ans: 2, hint: '24×5/8' },
+              { type: '面積', q: '圓面積公式？', opts: ['πr', '2πr', 'πr²', '2πr²'], ans: 2, hint: 'π×半徑²' },
+              { type: '比例', q: '地圖1:50000，2公分實際？', opts: ['1000m', '500m', '2000m', '100m'], ans: 0, hint: '2×50000÷100' },
+              { type: '體積', q: '長方體有幾面？', opts: ['4', '6', '8', '12'], ans: 1, hint: '前後左右上下' }
+            ]
+          },
+          '英語': {
+            1: [
+              { type: '單字', q: 'Apple是？', opts: ['橘子', '蘋果', '香蕉', '葡萄'], ans: 1, hint: 'Apple=蘋果' },
+              { type: '單字', q: 'Cat是？', opts: ['狗', '貓', '魚', '鳥'], ans: 1, hint: 'Cat=貓' },
+              { type: '字母', q: '英文有幾個字母？', opts: ['24', '25', '26', '27'], ans: 2, hint: 'A到Z' },
+              { type: '顏色', q: 'Red是？', opts: ['紅色', '藍色', '黃色', '綠色'], ans: 0, hint: 'Red=紅色' },
+              { type: '數字', q: 'Three是？', opts: ['1', '2', '3', '4'], ans: 2, hint: 'Three=3' },
+              { type: '單字', q: 'Dog是？', opts: ['貓', '狗', '豬', '牛'], ans: 1, hint: 'Dog=狗' },
+              { type: '問候', q: 'Hello意思？', opts: ['再見', '謝謝', '你好', '對不起'], ans: 2, hint: '打招呼' },
+              { type: '單字', q: 'Book是？', opts: ['書', '筆', '紙', '桌子'], ans: 0, hint: 'Book=書' }
+            ],
+            2: [
+              { type: '對話', q: 'How are you回答？', opts: ['Yes', 'No', "I'm fine", 'Goodbye'], ans: 2, hint: '問候回答' },
+              { type: '單字', q: 'Mother是？', opts: ['爸爸', '媽媽', '哥哥', '姊姊'], ans: 1, hint: 'Mother=媽媽' },
+              { type: '數字', q: 'One,two,___,four', opts: ['three', 'five', 'six', 'seven'], ans: 0, hint: '數字順序' },
+              { type: '單字', q: 'Happy意思？', opts: ['難過', '生氣', '快樂', '害怕'], ans: 2, hint: 'Happy=快樂' },
+              { type: '單字', q: 'School是？', opts: ['家', '學校', '公園', '商店'], ans: 1, hint: 'School=學校' },
+              { type: '顏色', q: 'Yellow是？', opts: ['紅', '黃', '藍', '綠'], ans: 1, hint: 'Yellow=黃色' },
+              { type: '問候', q: 'Good morning是？', opts: ['晚安', '早安', '午安', '再見'], ans: 1, hint: '早上問候' },
+              { type: '單字', q: 'Water是？', opts: ['火', '水', '土', '風'], ans: 1, hint: 'Water=水' }
+            ],
+            3: [
+              { type: 'be動詞', q: 'I ___ a student', opts: ['am', 'is', 'are', 'be'], ans: 0, hint: 'I配am' },
+              { type: 'be動詞', q: 'She ___ my sister', opts: ['am', 'is', 'are', 'be'], ans: 1, hint: 'She配is' },
+              { type: '日期', q: 'Monday是？', opts: ['日', '一', '二', '三'], ans: 1, hint: 'Monday=星期一' },
+              { type: '冠詞', q: '___ apple', opts: ['a', 'an', 'the', '/'], ans: 1, hint: '母音前用an' },
+              { type: '反義', q: 'Big相反？', opts: ['Tall', 'Small', 'Long', 'High'], ans: 1, hint: 'Big↔Small' },
+              { type: 'be動詞', q: 'They ___ happy', opts: ['am', 'is', 'are', 'be'], ans: 2, hint: 'They配are' },
+              { type: '單字', q: 'Teacher是？', opts: ['學生', '老師', '醫生', '工程師'], ans: 1, hint: 'Teacher=老師' },
+              { type: '日期', q: 'January是？', opts: ['一月', '二月', '三月', '四月'], ans: 0, hint: 'January=一月' }
+            ],
+            4: [
+              { type: '時態', q: 'I ___ yesterday', opts: ['go', 'goes', 'went', 'going'], ans: 2, hint: '過去式' },
+              { type: '疑問', q: '___ you like?', opts: ['Do', 'Does', 'Did', 'Are'], ans: 0, hint: 'You用Do' },
+              { type: '比較', q: 'This is ___ than that', opts: ['good', 'better', 'best', 'well'], ans: 1, hint: '比較級' },
+              { type: '介系詞', q: 'Book ___ table', opts: ['in', 'on', 'at', 'under'], ans: 1, hint: '在桌上' },
+              { type: '可數', q: 'How many ___?', opts: ['book', 'books', 'water', 'money'], ans: 1, hint: 'many用複數' },
+              { type: '時態', q: 'She ___ homework every day', opts: ['do', 'does', 'did', 'doing'], ans: 1, hint: 'She用does' },
+              { type: '進行式', q: 'They ___ playing', opts: ['is', 'are', 'am', 'was'], ans: 1, hint: 'They用are' },
+              { type: '疑問', q: '___ he play?', opts: ['Do', 'Does', 'Did', 'Is'], ans: 1, hint: 'He用Does' }
+            ],
+            5: [
+              { type: '完成式', q: 'I ___ finished', opts: ['have', 'has', 'had', 'having'], ans: 0, hint: 'I用have' },
+              { type: '被動', q: 'Book ___ by people', opts: ['read', 'reads', 'is read', 'was read'], ans: 2, hint: '被動語態' },
+              { type: '關係詞', q: 'The man ___ talking', opts: ['who', 'which', 'what', 'where'], ans: 0, hint: '人用who' },
+              { type: '動名詞', q: 'I enjoy ___', opts: ['read', 'reading', 'to read', 'reads'], ans: 1, hint: 'enjoy+Ving' },
+              { type: '不定詞', q: 'I want ___', opts: ['learn', 'learning', 'to learn', 'learns'], ans: 2, hint: 'want+to' },
+              { type: '完成式', q: 'She ___ lived here', opts: ['have', 'has', 'had', 'having'], ans: 1, hint: 'She用has' },
+              { type: '條件句', q: 'If it rains, I ___', opts: ['will', 'would', 'can', 'could'], ans: 0, hint: '第一條件句' },
+              { type: '關係詞', q: 'House ___ I live', opts: ['who', 'which', 'where', 'when'], ans: 2, hint: '地方用where' }
+            ],
+            6: [
+              { type: '假設', q: 'If I were you, I ___', opts: ['will', 'would', 'can', 'must'], ans: 1, hint: '假設語氣' },
+              { type: '分詞', q: '___ by news', opts: ['Shock', 'Shocked', 'Shocking', 'To shock'], ans: 1, hint: '過去分詞' },
+              { type: '倒裝', q: 'Never ___ I seen', opts: ['have', 'has', 'had', 'having'], ans: 0, hint: '否定倒裝' },
+              { type: '強調', q: 'It was ___ I met him', opts: ['when', 'that', 'which', 'where'], ans: 1, hint: '強調句型' },
+              { type: '間接', q: 'I wonder ___ he will come', opts: ['that', 'if', 'what', 'how'], ans: 1, hint: '間接問句' },
+              { type: '假設', q: 'If he ___ studied', opts: ['have', 'has', 'had', 'having'], ans: 2, hint: '第三條件' },
+              { type: '分詞', q: 'Book is very ___', opts: ['interest', 'interested', 'interesting', 'to interest'], ans: 2, hint: '主動意義' },
+              { type: '片語', q: 'Please ___ the light', opts: ['turn on', 'turn off', 'turn up', 'turn down'], ans: 0, hint: '開燈' }
+            ]
+          }
+        };
+
+        const subjects = {
+          '國語': { icon: '📚', color: '#FF6B6B' },
+          '數學': { icon: '🧮', color: '#FFB347' },
+          '英語': { icon: '🌍', color: '#4ECDC4' }
+        };
+
+        // === 儲存功能 ===
+        function saveData() {
+          try {
+            localStorage.setItem('playerProfile', JSON.stringify({
+              name: playerName,
+              profile: profile
+            }));
+            localStorage.setItem('gameRankings', JSON.stringify(rankings));
+            return true;
+          } catch { return false; }
+        }
+
+        function loadData() {
+          try {
+            const playerData = localStorage.getItem('playerProfile');
+            if (playerData) {
+              const data = JSON.parse(playerData);
+              playerName = data.name || '';
+              profile = data.profile || profile;
+            }
+            
+            const rankData = localStorage.getItem('gameRankings');
+            if (rankData) {
+              rankings = JSON.parse(rankData);
+            }
+            return true;
+          } catch { return false; }
+        }
+
+        // === 音效 ===
+        function beep(type) {
+          try {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = type === 'ok' ? 523 : 330;
+            gain.gain.value = 0.1;
+            osc.start();
+            osc.stop(ctx.currentTime + 0.2);
+          } catch {}
+        }
+
+        // === 渲染函數 ===
+        function render() {
+          const app = document.getElementById('app');
+          
+          if (screen === 'welcome') {
+            app.innerHTML = `
+              <div class="card">
+                <div class="title">🏆 學習擂台賽</div>
+                <div style="color: #8B4513; margin-bottom: 8px;">完整競賽版</div>
+                <div style="color: #A0522D; font-size: 14px; margin-bottom: 20px;">排行榜 • 個人檔案 • 連擊獎勵</div>
+                
+                ${profile.totalRounds > 0 ? `
+                  <div style="background: linear-gradient(135deg, #FFD93D, #FFA500); padding: 16px; border-radius: 16px; margin-bottom: 20px; color: white;">
+                    <div style="font-weight: 700; margin-bottom: 4px;">歡迎回來！</div>
+                    <div style="font-size: 20px; font-weight: 900;">${playerName}</div>
+                    <div style="margin-top: 8px;">總積分: ${profile.totalPoints} | 回合: ${profile.totalRounds}</div>
+                  </div>
+                ` : `
+                  <input class="input" id="nameInput" placeholder="輸入你的姓名" maxlength="15">
+                `}
+                
+                <button class="button" onclick="startGame()">
+                  ${profile.totalRounds > 0 ? '繼續競賽 🚀' : '開始競賽 ✨'}
+                </button>
+              </div>
+            `;
+            
+            if (profile.totalRounds === 0) {
+              const input = document.getElementById('nameInput');
+              input?.addEventListener('input', (e) => {
+                playerName = e.target.value;
+              });
+              input?.focus();
+            }
+            
+          } else if (screen === 'menu') {
+            const totalQs = allQuestions[subject][grade]?.length || 0;
+            
+            app.innerHTML = `
+              <div class="menu">
+                <div class="header">
+                  <div style="font-size: 24px; font-weight: 900;">🏆 學習擂台賽</div>
+                  <div style="opacity: 0.9;">嗨！${playerName} 👋</div>
+                </div>
+                
+                <div class="content">
+                  ${profile.totalRounds > 0 ? `
+                    <div class="profile-card">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div>
+                          <div style="font-size: 17px; font-weight: 800; color: #5C4033;">${playerName}</div>
+                          <div style="font-size: 12px; color: #A0826D;">競賽玩家</div>
+                        </div>
+                        <div style="background: #FFD93D; padding: 6px 12px; border-radius: 12px; color: white; font-weight: 800;">
+                          ⭐ ${profile.totalPoints}
+                        </div>
+                      </div>
+                      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-top: 12px; border-top: 2px dashed #FFE5B4;">
+                        <div style="text-align: center;">
+                          <div style="font-size: 16px; font-weight: 900; color: #5C4033;">${profile.totalRounds}</div>
+                          <div style="font-size: 11px; color: #A0826D;">回合</div>
+                        </div>
+                        <div style="text-align: center;">
+                          <div style="font-size: 16px; font-weight: 900; color: #5C4033;">${profile.totalCorrect}</div>
+                          <div style="font-size: 11px; color: #A0826D;">答對</div>
+                        </div>
+                        <div style="text-align: center;">
+                          <div style="font-size: 16px; font-weight: 900; color: #FF6B6B;">${profile.accuracy}%</div>
+                          <div style="font-size: 11px; color: #A0826D;">正確率</div>
+                        </div>
+                      </div>
+                    </div>
+                  ` : ''}
+                  
+                  <div class="section">
+                    <div class="section-title">⭐ 選擇年級</div>
+                    <div class="grid">
+                      ${[1,2,3,4,5,6].map(g => `
+                        <button class="option-btn ${grade === g ? 'selected' : ''}" onclick="grade=${g}; render();">
+                          ${g} 年級
+                        </button>
+                      `).join('')}
+                    </div>
+                  </div>
+
+                  <div class="section">
+                    <div class="section-title">🎯 選擇科目</div>
+                    <div class="grid">
+                      ${Object.keys(subjects).map(s => `
+                        <button class="option-btn ${subject === s ? 'selected' : ''}" onclick="subject='${s}'; render();">
+                          ${subjects[s].icon} ${s}
+                        </button>
+                      `).join('')}
+                    </div>
+                  </div>
+
+                  <div class="info-box">
+                    <div style="font-weight: 700; margin-bottom: 8px;">
+                      📝 ${subject} ${grade}年級 - 準備開戰！
+                    </div>
+                    <div style="font-size: 12px; color: #666;">
+                      ✅ 共 ${totalQs} 道題目<br>
+                      🏆 連擊獎勵：3連擊+5分<br>
+                      ☁️ 自動儲存進度<br>
+                      📊 即時排行榜更新
+                    </div>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
+                    <button onclick="showRecords()" style="padding: 12px; border: 2px solid #E0F7F5; background: white; border-radius: 12px; font-weight: 700; color: #4ECDC4; cursor: pointer; font-family: inherit;">
+                      📊 紀錄
+                    </button>
+                    <button onclick="showRankings()" style="padding: 12px; border: 2px solid #FFF0D9; background: white; border-radius: 12px; font-weight: 700; color: #FFB347; cursor: pointer; font-family: inherit;">
+                      🏆 排行榜
+                    </button>
+                  </div>
+
+                  <button class="button" onclick="startQuiz()" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    ⚡ 開始 ${subject} ${grade}年級 競賽
+                  </button>
+                </div>
+              </div>
+            `;
+            
+          } else if (screen === 'quiz') {
+            if (!quiz || qIndex >= quiz.length) {
+              finishQuiz();
+              return;
+            }
+            
+            const q = quiz[qIndex];
+            const progress = ((qIndex + 1) / quiz.length) * 100;
+            
+            app.innerHTML = `
+              <div class="menu">
+                <div class="header">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <button onclick="screen='menu'; render();" style="background: white; border: none; width: 40px; height: 40px; border-radius: 12px; cursor: pointer;">🏠</button>
+                    <div style="text-align: center;">
+                      <div style="font-weight: 800;">${subject} ${grade}年級</div>
+                      <div style="font-size: 14px; opacity: 0.9;">第 ${qIndex + 1} / ${quiz.length} 題</div>
+                    </div>
+                    <div style="text-align: center; font-weight: 700;">
+                      <div>${points}分</div>
+                      ${combo > 0 ? `<div style="font-size: 12px;">🔥${combo}</div>` : ''}
+                    </div>
+                  </div>
+                  <div style="margin-top: 12px; width: 100%; height: 6px; background: rgba(255,255,255,0.3); border-radius: 3px;">
+                    <div style="width: ${progress}%; height: 100%; background: white; border-radius: 3px; transition: width 0.3s;"></div>
+                  </div>
+                </div>
+                
+                <div class="content">
+                  <div style="background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px;">
+                    <div style="margin-bottom: 16px;">
+                      <span style="background: ${subjects[subject].color}22; color: ${subjects[subject].color}; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                        ${q.type}
+                      </span>
+                    </div>
+                    
+                    <h2 style="font-size: 18px; font-weight: 700; color: #2C3E50; margin-bottom: 20px;">${q.q}</h2>
+                    
+                    <div style="display: grid; gap: 12px;">
+                      ${q.opts.map((opt, i) => {
+                        let style = 'background: white; border: 2px solid #E5E5E5; color: #555;';
+                        if (feedback) {
+                          if (i === q.ans) style = 'background: #D4F3D0; border-color: #28A745; color: #155724;';
+                          else if (i === selected) style = 'background: #F8D7DA; border-color: #DC3545; color: #721C24;';
+                        } else if (selected === i) {
+                          style = 'background: #E3F2FD; border-color: #2196F3; color: #1976D2;';
+                        }
+                        
+                        return `
+                          <button onclick="selectOpt(${i})" ${feedback ? 'disabled' : ''} style="${style} border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 600; cursor: ${feedback ? 'default' : 'pointer'}; text-align: left; font-family: inherit;">
+                            <span style="margin-right: 12px; background: ${feedback && i === q.ans ? '#28A745' : feedback && i === selected ? '#DC3545' : '#CCC'}; color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800;">
+                              ${String.fromCharCode(65 + i)}
+                            </span>
+                            ${opt}
+                          </button>
+                        `;
+                      }).join('')}
+                    </div>
+
+                    ${feedback ? `
+                      <div style="margin-top: 16px; padding: 16px; background: #F8F9FA; border-radius: 12px; border-left: 4px solid #007BFF;">
+                        <div style="font-weight: 700; margin-bottom: 8px;">💡 解釋</div>
+                        <p style="color: #666; margin: 0;">${q.hint}</p>
+                      </div>
+                    ` : ''}
+                  </div>
+
+                  ${feedback ? `
+                    <button onclick="nextQ()" class="button">
+                      ${qIndex + 1 < quiz.length ? '下一題 ▶️' : '查看結果 🏅'}
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+            
+          } else if (screen === 'result') {
+            const pct = Math.round((correct / quiz.length) * 100);
+            let emoji = '💪', msg = '繼續加油！';
+            if (pct >= 90) { emoji = '🏆'; msg = '完美表現！'; }
+            else if (pct >= 80) { emoji = '🥇'; msg = '優秀！'; }
+            else if (pct >= 70) { emoji = '🥈'; msg = '很好！'; }
+            else if (pct >= 60) { emoji = '🥉'; msg = '不錯！'; }
+            
+            const isNewBest = !profile.bestScores[subject] || points > profile.bestScores[subject];
+            
+            app.innerHTML = `
+              <div class="menu">
+                <div class="header">
+                  <div style="font-size: 22px; font-weight: 900;">🎉 答題完成！</div>
+                  <div style="opacity: 0.9;">恭喜 ${playerName} 完成挑戰</div>
+                </div>
+                
+                <div class="content">
+                  ${isNewBest ? `
+                    <div style="background: #FFD93D; padding: 12px; border-radius: 14px; margin-bottom: 16px; text-align: center; color: white; font-weight: 800;">
+                      👑 ${subject} 個人最佳紀錄！
+                    </div>
+                  ` : ''}
+                  
+                  <div style="background: white; border-radius: 20px; padding: 24px; margin-bottom: 20px; text-align: center;">
+                    <div style="font-size: 64px; margin-bottom: 16px;">${emoji}</div>
+                    <div style="font-size: 48px; font-weight: 900; color: #FF6B6B; margin-bottom: 8px;">+${points}</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #5C4033; margin-bottom: 16px;">
+                      答對 ${correct}/${quiz.length} 題 (${pct}%)
+                    </div>
+                    <div style="color: ${subjects[subject].color}; font-size: 16px; font-weight: 700;">
+                      ${subjects[subject].icon} ${msg}
+                    </div>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div style="background: white; border-radius: 14px; padding: 12px; text-align: center;">
+                      <div style="font-size: 20px; margin-bottom: 4px;">🔥</div>
+                      <div style="font-size: 11px; color: #A0826D;">最高連擊</div>
+                      <div style="font-size: 20px; font-weight: 900; color: #5C4033;">${maxCombo}</div>
+                    </div>
+                    <div style="background: white; border-radius: 14px; padding: 12px; text-align: center;">
+                      <div style="font-size: 20px; margin-bottom: 4px;">⭐</div>
+                      <div style="font-size: 11px; color: #A0826D;">累積積分</div>
+                      <div style="font-size: 20px; font-weight: 900; color: #5C4033;">${profile.totalPoints}</div>
+                    </div>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
+                    <button onclick="showRecords()" style="padding: 12px; border: 2px solid #E0F7F5; background: white; border-radius: 12px; font-weight: 700; color: #4ECDC4; cursor: pointer; font-family: inherit; font-size: 13px;">📊</button>
+                    <button onclick="showRankings()" style="padding: 12px; border: 2px solid #FFF0D9; background: white; border-radius: 12px; font-weight: 700; color: #FFB347; cursor: pointer; font-family: inherit; font-size: 13px;">🏆</button>
+                    <button onclick="startQuiz()" style="padding: 12px; background: linear-gradient(135deg, #FF6B6B, #FF9966); border: none; border-radius: 12px; font-weight: 700; color: white; cursor: pointer; font-family: inherit; font-size: 13px;">🔄</button>
+                  </div>
+
+                  <button onclick="screen='menu'; render();" style="width: 100%; padding: 12px; border: 2px solid #FFE5B4; background: transparent; border-radius: 12px; font-weight: 700; color: #A0826D; cursor: pointer; font-family: inherit;">
+                    ← 回主選單
+                  </button>
+                </div>
+              </div>
+            `;
+            
+          } else if (screen === 'records') {
+            app.innerHTML = `
+              <div class="menu">
+                <div class="header">
+                  <div style="font-size: 22px; font-weight: 900;">📊 我的紀錄</div>
+                  <div style="opacity: 0.9;">${playerName} 的學習成果</div>
+                </div>
+                
+                <div class="content">
+                  <div style="background: white; border-radius: 20px; padding: 20px; margin-bottom: 20px; text-align: center;">
+                    <div style="font-size: 36px; font-weight: 900; color: #4ECDC4; margin-bottom: 8px;">${profile.totalPoints}</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #5C4033; margin-bottom: 16px;">總積分</div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                      <div>
+                        <div style="font-size: 18px; font-weight: 900; color: #5C4033;">${profile.totalRounds}</div>
+                        <div style="font-size: 12px; color: #A0826D;">總回合</div>
+                      </div>
+                      <div>
+                        <div style="font-size: 18px; font-weight: 900; color: #5C4033;">${profile.totalCorrect}</div>
+                        <div style="font-size: 12px; color: #A0826D;">答對題數</div>
+                      </div>
+                      <div>
+                        <div style="font-size: 18px; font-weight: 900; color: #FF6B6B;">${profile.accuracy}%</div>
+                        <div style="font-size: 12px; color: #A0826D;">正確率</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  ${Object.keys(profile.bestScores).length > 0 ? `
+                    <div style="margin-bottom: 20px;">
+                      <div class="section-title">🏆 各科最佳</div>
+                      <div style="display: grid; gap: 8px;">
+                        ${Object.entries(profile.bestScores).map(([subj, score]) => `
+                          <div style="background: white; padding: 12px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                              <span style="font-size: 16px;">${subjects[subj].icon}</span>
+                              <span style="margin-left: 8px; font-weight: 700;">${subj}</span>
+                            </div>
+                            <div style="font-size: 16px; font-weight: 900; color: ${subjects[subj].color};">${score}</div>
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
+                  ` : ''}
+
+                  <div style="margin-bottom: 20px;">
+                    <div class="section-title">📚 最近記錄</div>
+                    ${profile.recentGames.length === 0 ? `
+                      <div style="background: white; border-radius: 16px; padding: 24px; text-align: center;">
+                        <div style="font-size: 36px; margin-bottom: 8px;">📝</div>
+                        <div style="color: #A0826D;">還沒有記錄，快去挑戰吧！</div>
+                      </div>
+                    ` : `
+                      <div style="background: white; border-radius: 16px; padding: 8px;">
+                        ${profile.recentGames.slice(0, 5).map((game, i) => `
+                          <div style="padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; ${i < Math.min(profile.recentGames.length, 5) - 1 ? 'border-bottom: 1px solid #FFF4E0;' : ''}">
+                            <div>
+                              <span style="font-size: 16px; margin-right: 8px;">${subjects[game.subject].icon}</span>
+                              <span style="font-weight: 700;">${game.subject} ${game.grade}年級</span>
+                            </div>
+                            <div style="text-align: right;">
+                              <div style="font-weight: 900; color: ${subjects[game.subject].color};">+${game.score}</div>
+                              <div style="font-size: 11px; color: #A0826D;">${game.correct}/${game.total}</div>
+                            </div>
+                          </div>
+                        `).join('')}
+                      </div>
+                    `}
+                  </div>
+
+                  <button onclick="screen='menu'; render();" class="button">
+                    ← 回主選單
+                  </button>
+                </div>
+              </div>
+            `;
+            
+          } else if (screen === 'rankings') {
+            const myRank = rankings.findIndex(r => r.name === playerName) + 1;
+            
+            app.innerHTML = `
+              <div class="menu">
+                <div class="header">
+                  <div style="font-size: 22px; font-weight: 900;">🏆 全球排行榜</div>
+                  <div style="opacity: 0.9;">頂尖玩家競賽榜</div>
+                </div>
+                
+                <div class="content">
+                  ${myRank > 0 ? `
+                    <div style="background: linear-gradient(135deg, #FF6B6B, #FF9966); padding: 18px; border-radius: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; color: white;">
+                      <div>
+                        <div style="font-size: 12px; opacity: 0.8;">你的排名</div>
+                        <div style="font-size: 17px; font-weight: 800;">#${myRank} ${playerName}</div>
+                      </div>
+                      <div style="background: rgba(255,255,255,0.25); padding: 8px 14px; border-radius: 12px; font-weight: 800;">
+                        ${profile.totalPoints} 分
+                      </div>
+                    </div>
+                  ` : ''}
+
+                  <div style="background: white; border-radius: 20px; padding: 8px;">
+                    ${rankings.length === 0 ? `
+                      <div style="text-align: center; padding: 40px 20px; color: #A0826D;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">🏆</div>
+                        <div style="font-weight: 600;">還沒有人上榜<br>快來成為第一名！</div>
+                      </div>
+                    ` : rankings.slice(0, 10).map((rank, i) => {
+                        const isMe = rank.name === playerName;
+                        const icons = ['👑', '🥈', '🥉'];
+                        const bgs = ['#FFF9E6', '#F5F5F5', '#FAEBE0'];
+                        
+                        return `
+                          <div style="padding: 12px 14px; background: ${i < 3 ? bgs[i] : (isMe ? '#FFE5E5' : 'transparent')}; border-radius: 14px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; ${isMe ? 'border: 2px solid #FF6B6B;' : ''}">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                              <span style="width: 32px; text-align: center; font-size: ${i < 3 ? '20px' : '16px'}; font-weight: 800;">
+                                ${i < 3 ? icons[i] : i + 1}
+                              </span>
+                              <div>
+                                <div style="font-weight: 800; color: #5C4033;">
+                                  ${rank.name}${isMe ? ' (你)' : ''}
+                                </div>
+                                <div style="font-size: 11px; color: #A0826D;">🎯 ${rank.rounds} 回合</div>
+                              </div>
+                            </div>
+                            <div style="font-size: 17px; font-weight: 900; color: ${i === 0 ? '#FFA500' : '#5C4033'};">
+                              ${rank.score}
+                            </div>
+                          </div>
+                        `;
+                      }).join('')}
+                  </div>
+
+                  <button onclick="screen='menu'; render();" class="button" style="margin-top: 16px;">
+                    ← 回主選單
+                  </button>
+                </div>
+              </div>
+            `;
+          }
+        }
+
+        // === 遊戲邏輯 ===
+        function startGame() {
+          if (profile.totalRounds === 0 && !playerName.trim()) return;
+          beep('ok');
+          if (profile.totalRounds === 0) {
+            playerName = playerName.trim();
+            saveData();
+          }
+          screen = 'menu';
+          render();
+        }
+
+        function startQuiz() {
+          const qs = allQuestions[subject][grade];
+          if (!qs || qs.length === 0) {
+            alert('該年級暫無題目');
+            return;
+          }
+          
+          beep('ok');
+          quiz = [...qs].sort(() => Math.random() - 0.5).slice(0, 5);
+          qIndex = 0;
+          points = 0;
+          correct = 0;
+          selected = null;
+          feedback = false;
+          combo = 0;
+          maxCombo = 0;
+          
+          screen = 'quiz';
+          render();
+        }
+
+        function selectOpt(i) {
+          if (feedback) return;
+          beep('ok');
+          selected = i;
+          feedback = true;
+          
+          const q = quiz[qIndex];
+          const isCorrect = i === q.ans;
+          
+          if (isCorrect) {
+            combo++;
+            maxCombo = Math.max(maxCombo, combo);
+            const basePoints = 10;
+            const bonusPoints = combo >= 3 ? 5 : 0;
+            points += basePoints + bonusPoints;
+            correct++;
+            
+            setTimeout(() => beep('ok'), 100);
+          } else {
+            combo = 0;
+            setTimeout(() => beep('no'), 100);
+          }
+          
+          render();
+        }
+
+        function nextQ() {
+          beep('ok');
+          qIndex++;
+          selected = null;
+          feedback = false;
+          render();
+        }
+
+        function finishQuiz() {
+          const isNewBest = !profile.bestScores[subject] || points > profile.bestScores[subject];
+          
+          if (isNewBest) {
+            profile.bestScores[subject] = points;
+          }
+          
+          profile.totalPoints += points;
+          profile.totalRounds++;
+          profile.totalCorrect += correct;
+          profile.accuracy = Math.round((profile.totalCorrect / (profile.totalRounds * 5)) * 100);
+          
+          profile.recentGames.unshift({
+            subject, grade, score: points, correct, total: quiz.length, date: Date.now()
+          });
+          if (profile.recentGames.length > 10) {
+            profile.recentGames = profile.recentGames.slice(0, 10);
+          }
+          
+          // 更新排行榜
+          const existingIndex = rankings.findIndex(r => r.name === playerName);
+          if (existingIndex >= 0) {
+            rankings[existingIndex].score = profile.totalPoints;
+            rankings[existingIndex].rounds = profile.totalRounds;
+          } else {
+            rankings.push({
+              name: playerName,
+              score: profile.totalPoints,
+              rounds: profile.totalRounds
+            });
+          }
+          rankings.sort((a, b) => b.score - a.score);
+          rankings = rankings.slice(0, 10);
+          
+          saveData();
+          screen = 'result';
+          render();
+        }
+
+        function showRecords() {
+          beep('ok');
+          screen = 'records';
+          render();
+        }
+
+        function showRankings() {
+          beep('ok');
+          screen = 'rankings';
+          render();
+        }
+
+        // === 初始化 ===
+        function init() {
+          loadData();
+          render();
+        }
+
+        // 確保載入完成後初始化
+        setTimeout(init, 800);
+    </script>
+</body>
+</html>
